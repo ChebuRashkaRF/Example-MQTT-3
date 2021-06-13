@@ -1,0 +1,61 @@
+version: '3.1'
+
+services:
+  influxdb:
+    image: influxdb:1.8
+    container_name: influxdb
+    ports:
+      - "8083:8083"
+      - "8086:8086"
+      - "8090:8090"
+    environment:
+      - INFLUXDB_DB=sensors
+      - INFLUXDB_USER=telegraf
+      - INFLUXDB_USER_PASSWORD=telegraf
+    volumes:
+      - influxdb-storage:/var/lib/influxdb
+
+  mosquitto:
+    image: eclipse-mosquitto:1.6
+    hostname: mosquitto
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+  
+  telegraf:
+    image: telegraf
+    container_name: telegraf
+    links:
+      - influxdb
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+  
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    links:
+      - influxdb
+    depends_on:
+      - influxdb
+    volumes:
+      - grafana-storage:/var/lib/grafana
+  
+  publisher:
+    build:
+      context: .
+      dockerfile: publisher.Dockerfile
+    command: "python3 publisher.py"
+    container_name: publisher
+    depends_on:
+      - telegraf
+      - mosquitto
+    network_mode: host
+      
+volumes:
+  influxdb-storage:
+  grafana-storage:
+
+    
